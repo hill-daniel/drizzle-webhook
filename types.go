@@ -1,5 +1,7 @@
 package drizzle
 
+import "io"
+
 const (
 	// GitHubSecretsPrefix used to retrieve GitHub secrets.
 	GitHubSecretsPrefix = "GITHUB"
@@ -16,7 +18,7 @@ type SecretRetriever interface {
 
 // Publisher is an interface for publishing messages.
 type Publisher interface {
-	Publish(message string) error
+	Publish(message io.Reader) error
 }
 
 // Repository represents a git repository.

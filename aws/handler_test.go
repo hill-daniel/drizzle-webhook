@@ -10,6 +10,7 @@ import (
 	"github.com/hill-daniel/drizzle-webhook/mocks"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -27,7 +28,7 @@ func TestLambdaHandler_Handle_should_validate_signature_with_payload(t *testing.
 	secretsManager := &mocks.SecretsManager{GetSecretFunc: func(secretID string) (string, error) {
 		return "super-secret", nil
 	}}
-	messageQueue := &mocks.MessageQueue{PublishFunc: func(message string) error {
+	messageQueue := &mocks.MessageQueue{PublishFunc: func(message io.Reader) error {
 		return nil
 	}}
 	handler := aws.NewLambdaHandler(validator, secretsManager, messageQueue)
@@ -48,7 +49,7 @@ func TestLambdaHandler_Handle_should_return_error_on_validation_failure(t *testi
 	secretsManager := &mocks.SecretsManager{GetSecretFunc: func(secretID string) (string, error) {
 		return "", nil
 	}}
-	messageQueue := &mocks.MessageQueue{PublishFunc: func(message string) error {
+	messageQueue := &mocks.MessageQueue{PublishFunc: func(message io.Reader) error {
 		return nil
 	}}
 	handler := aws.NewLambdaHandler(failingValidator, secretsManager, messageQueue)
@@ -72,7 +73,7 @@ func Test_should_ignore_request_with_drizzle_head_commit(t *testing.T) {
 	secretsManager := &mocks.SecretsManager{GetSecretFunc: func(secretID string) (string, error) {
 		return "", nil
 	}}
-	messageQueue := &mocks.MessageQueue{PublishFunc: func(message string) error {
+	messageQueue := &mocks.MessageQueue{PublishFunc: func(message io.Reader) error {
 		return errors.New("message queue should not have been called")
 	}}
 	handler := aws.NewLambdaHandler(invalidatingRequestValidator, secretsManager, messageQueue)

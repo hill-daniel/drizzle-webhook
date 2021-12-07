@@ -1,5 +1,7 @@
 package mocks
 
+import "io"
+
 // SecretsManager mock.
 type SecretsManager struct {
 	GetSecretFunc func(secretID string) (string, error)
@@ -12,10 +14,10 @@ func (sm *SecretsManager) RetrieveSecret(secretID string) (string, error) {
 
 // MessageQueue mock.
 type MessageQueue struct {
-	PublishFunc func(message string) error
+	PublishFunc func(message io.Reader) error
 }
 
 // Publish mock.
-func (mq *MessageQueue) Publish(message string) error {
+func (mq *MessageQueue) Publish(message io.Reader) error {
 	return mq.PublishFunc(message)
 }

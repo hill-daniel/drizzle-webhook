@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -22,15 +23,15 @@ const (
 type LambdaHandler struct {
 	validatePayload drizzle.ValidatePayload
 	secretRetriever drizzle.SecretRetriever
-	messageQueue    drizzle.Publisher
+	publisher       drizzle.Publisher
 }
 
 // NewLambdaHandler creates a new LambdaHandler.
-func NewLambdaHandler(validator drizzle.ValidatePayload, secretRetriever drizzle.SecretRetriever, messageQueue drizzle.Publisher) *LambdaHandler {
+func NewLambdaHandler(validator drizzle.ValidatePayload, secretRetriever drizzle.SecretRetriever, publisher drizzle.Publisher) *LambdaHandler {
 	return &LambdaHandler{
 		validatePayload: validator,
 		secretRetriever: secretRetriever,
-		messageQueue:    messageQueue,
+		publisher:       publisher,
 	}
 }
 
@@ -60,27 +61,10 @@ func (lh *LambdaHandler) Handle(ctx context.Context, proxyRequest *events.APIGat
 		return createResponse(http.StatusOK), nil
 	}
 
-	repository := drizzle.Repository{
-		ID:        strconv.FormatInt(request.Repository.ID, 10),
-		BranchRef: request.Ref,
-		Name:      request.Repository.Name,
-		FullName:  request.Repository.FullName,
-		Private:   request.Repository.Private,
-		URL:       request.Repository.URL,
-		CloneURL:  request.Repository.CloneURL,
-		Provider:  determineProvider(proxyRequest),
-	}
-	repositoryMessage, err := json.Marshal(repository)
-	if err != nil {
+	if err = publishRepository(lh.publisher, request, determineProvider(proxyRequest)); err != nil {
 		log.Println(err)
 		return createResponse(http.StatusInternalServerError), nil
 	}
-
-	if err = lh.messageQueue.Publish(string(repositoryMessage)); err != nil {
-		log.Println(err)
-		return createResponse(http.StatusInternalServerError), nil
-	}
-
 	return createResponse(http.StatusOK), nil
 }
 
@@ -106,4 +90,25 @@ func createResponse(httpStatus int) *events.APIGatewayProxyResponse {
 		Body:              "",
 		IsBase64Encoded:   false,
 	}
+}
+
+func publishRepository(publisher drizzle.Publisher, request *drizzle.GitHubHookRequest, provider string) error {
+	repository := &drizzle.Repository{
+		ID:        strconv.FormatInt(request.Repository.ID, 10),
+		BranchRef: request.Ref,
+		Name:      request.Repository.Name,
+		FullName:  request.Repository.FullName,
+		Private:   request.Repository.Private,
+		URL:       request.Repository.URL,
+		CloneURL:  request.Repository.CloneURL,
+		Provider:  provider,
+	}
+	repositoryMessage, err := json.Marshal(repository)
+	if err != nil {
+		return errors.Wrapf(err, "failed to marshal repository")
+	}
+	if err = publisher.Publish(bytes.NewReader(repositoryMessage)); err != nil {
+		return errors.Wrapf(err, "failed to publish message")
+	}
+	return nil
 }
