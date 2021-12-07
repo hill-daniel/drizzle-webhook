@@ -41,6 +41,11 @@ func TestValidatePayload_should_fail_on_invalid_signature(t *testing.T) {
 	assert.EqualErrorf(t, err, "failed to parse signature", "")
 }
 
+func TestValidatePayload_should_fail_on_empty_signature(t *testing.T) {
+	err := crypto.ValidatePayload("someSecret", "", []byte{})
+	assert.EqualErrorf(t, err, "failed to parse signature", "")
+}
+
 func TestValidatePayload_should_fail_if_no_sha256_prefix(t *testing.T) {
 	err := crypto.ValidatePayload("someSecret", "s9j=886683835f03ba1719007744f9111d5f09c3f7505b6333aa4a546af15a2cbc81", []byte{})
 
